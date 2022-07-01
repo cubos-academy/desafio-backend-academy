@@ -2,7 +2,7 @@
     <img alt="Cubos Academy" width="170" src="cubos_academy.png" />
     </br>
     </br>
-    Desafio Técnico Front-end Cubos Academy
+    Desafio Técnico Back-end Cubos Academy
     </br>
     </br>
 </h1>
