@@ -1,46 +1,107 @@
 const conection = require('../conection');
-const securePassword = require('secure-password');
+const senhaSecreta = require('secure-password');
 
-const pwd = securePassword();
 
-const registerUser = async(req, res) =>{
-    const { name, email, password } = req.body;
 
-    if(!name || !email || !password) {
-        return res.status(400).json('Os campos name, email e password sao obrigatórios!');
+const pwd = senhaSecreta();
+
+const resgistrarUsuario = async(req, res) =>{
+    const { nome, email, senha } = req.body;
+
+    if(!nome || !email || !senha) {
+        return res.status(400).json('Os campos nome, email e senha são obrigatórios!');
     }
 
     try {
-        //verificacao de cadastro existente
-
         const query = 'SELECT * FROM usuarios WHERE email = $1';
         const { rowCount: userRows} = await conection.query(query, [email]);
 
         if (userRows > 0) {
-            return res.status(400).json('Já existe usuário cadastrado com o e-mail informado');
+            return res.status(401).json('Já existe usuário cadastrado com o e-mail informado');
         }          
-    } catch {
-        return res.status(500).json('Erro');
+    } catch (e) {
+        return res.status(400).json(e.message);
     };
 
     try {
-        //cadastrar usuario
-        //criar hash com senha
-        const hash = await pwd.hash(Buffer.from.password).toString('hex');
-        //insert
-        const query = 'INSERT INTO usuarios (name, email, password) VALUES ($1, $2, $3)';
-        const registerUser = await conection.query(query, [name, email, hash]);
+       
+        const hash = (await pwd.hash(Buffer.from(senha))).toString('hex');
+        
+        const queryRegistrarUsuario = 'INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3)';
+        const resgistrarUsuario = await conection.query(queryRegistrarUsuario, [ nome, email, hash]);
 
-        if (registerUser.rowCount === 0) {
+        if (resgistrarUsuario.rowCount === 0) {
             return res.status(400).json('Erro na inserção');
         }
 
-        return res.status(201).json('user.id', 'user.nome', 'user.email')
-        //verificar autenticacao c/ token
+        const query = "SELECT * FROM usuarios WHERE email = $1";
+        const usuario = await conection.query(query, [email]);
 
+        const usuarioEncontrado = usuario.rows[0];
+
+        const { senha: senhaUsuario, ...dadosUsuario } = usuarioEncontrado;
+        
+        return res.status(201).json({usuario: dadosUsuario});
+
+        
+    
     } catch (e) {
         return res.status(500).json(e.message);
     };
+};
+
+const detalharUsuario = async (req, res) => {
+    const { usuario } = req;
+    
+    try {
+
+        const queryEncontrarUsuario = 'SELECT * FROM usuarios  WHERE id = $1';
+        const { rows } = await conection.query(queryEncontrarUsuario, [usuario.id]);
+        
+        const usr = rows[0];
+        const { senha: senhaUsuario, ...dadosUsuario } = usr;
+        
+        return res.status(200).json(dadosUsuario);
+                
+    } catch (e) {
+        return res.status(500).json(e.message);
+    }
 }
 
-module.exports = registerUser;
+const atualizarUsuario = async (req, res) => {
+    const { nome, email, senha } = req.body;
+    const { usuario } = req;
+
+    if (!token) {
+        return res.status(401).json("Para acessar este recurso um token de autenticação válido deve ser enviado.");
+    }
+
+    try {
+                
+        const queryAtualizar = "UPDATE usuarios SET nome = $1, senha = $2, email = $3";
+        const usuarioAtualizar = await conection.query(queryAtualizar, [nome, senha, email]);
+
+        if (usuarioAtualizar.rowCount === 0) {
+            return res.status(400).json("Não foi possível realizar atualização");
+
+        }
+        
+        const query = 'SELECT * FROM usuarios WHERE email = $1';
+        const { rowCount: usuarioRows} = await conection.query(query, [usuario.email]);
+    
+        if (usuarioRows > 0) {
+            return res.status(401).json('Já existe usuário cadastrado com o e-mail informado');
+        }     
+        
+        return res.status(201);
+    
+    } catch (e) {
+        return res.status(500).json(e.message);
+    }    
+} 
+
+module.exports = { 
+    resgistrarUsuario,
+    detalharUsuario,
+    atualizarUsuario,
+}
